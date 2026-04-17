@@ -37,7 +37,44 @@ vector<int> dfs(vector<vector<int>> &adj){
 
 
 // Dikstra
+//A* - implementing this for heuristic-based optimization
+int heuristic(Point a, Point b){
+    return abs(a.x - b.x)+ (abs a.y - b.y);
+}
 
+vector<Point> Astar(){
+    using Node = pair<int, Point>;
+    priority_queue<Node, vector<Node>,greater<Node>> pq;
+    
+    map<Point, int> gCost;
+    map<Point, Point> parent;
+    
+    gCost[start] = 0;
+    pq.push({heuristic(start,goal), start});
+    
+    while (!pq.empty()) {
+        Point curr = pq.top().second;
+        pq.pop();
+        
+        if (curr == goal)
+          return recontructPath(parent, goal);
+        for (auto d : directions) {
+            Point next = {curr.x + d.x, curr.y +d.y};
+            
+            if(!isValid(next.c, next.y)) continue;
+            
+            int newCost = gCost[curr] + 1;
+            
+            if(!gCost.count(next) || newCost < gCost[next]) {
+                gCost[next] = newCost;
+                int priority = newCost + heuristic(next,goal);
+                pq.push({priority, next});
+                parent[next] = curr;
+            }
+        }
+    }
+      return{};
+}
 
 
 
