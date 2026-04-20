@@ -19,7 +19,7 @@ Maze Grid Representation :
 
 Team Members : 
 - Mani Botla
-- Anissa Sollman
+- Anissa Sollman (https://github.com/yourusername)
 - Nick Liverett
 
 ## How to Compile and Run the code
