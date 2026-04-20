@@ -451,12 +451,12 @@ void runMenu(const vector<string>& maze) {
         cout << "\n\nAnt colony optimization is an algorithm modeled on the actions of an ant colony\n";
         cout << "How large is your ant colony?" << endl;
         cout << "Recommended number of ants based on maze size:" 
-        << endl << "Small - 20" << endl << "Medium - 40" << endl << "Large - 60-100" << endl;
+        << endl << "Small - 20" << endl << "Medium - 40" << endl;
         cout << "\nNumber of ants: ";
         cin >> numAnts;
         cout << "\nHow many rounds/times (iterations) would you like your ants to search?" << endl;
         cout << "Recommended iterations based on maze size:" 
-        << endl << "Small - 50-75" << endl << "Medium - 100-150" << endl << "Large - 200-300" << endl;
+        << endl << "Small - 50-75" << endl << "Medium - 100-150" << endl;
         cout << endl << "Iterations: ";
         cin >> iterations;
 
@@ -473,12 +473,12 @@ void runMenu(const vector<string>& maze) {
         cout << "\n\nAnt colony optimization is an algorithm modeled on the actions of an ant colony\n";
         cout << "How large is your ant colony?" << endl;
         cout << "Recommended number of ants based on maze size:" 
-        << endl << "Small - 20" << endl << "Medium - 40" << endl << "Large - 60-100" << endl;
+        << endl << "Small - 20" << endl << "Medium - 40" << endl;
         cout << "\nNumber of ants: ";
         cin >> numAnts;
         cout << "How many rounds/times (iterations) would you like your ants to search?" << endl;
         cout << "Recommended iterations based on maze size:" 
-        << endl << "Small - 50-75" << endl << "Medium - 100-150" << endl << "Large - 200-300" << endl;
+        << endl << "Small - 50-75" << endl << "Medium - 100-150" << endl;
         cout << "Iterations: ";
         cin >> iterations;
 
@@ -494,6 +494,7 @@ void runMenu(const vector<string>& maze) {
         string input = "";
         cout << endl << "Please choose a maze type by inputting your file path." << endl;
         cout << "File Path: ";
+        cin.ignore();
         getline(cin, input);
 
         vector<string> maze = loadDataFile(input);
