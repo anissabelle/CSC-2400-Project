@@ -28,7 +28,7 @@ Team Members :
   * VS Code
 - Steps to Run :
 ```bash
-g++ main.cpp -o .maze_runner.exe
+g++ main.cpp -o maze_runner.exe
 
 ./maze_runner.exe
 # Either specify a file or directory to run the algorithms in and select options in the menu
