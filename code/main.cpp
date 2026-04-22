@@ -12,6 +12,7 @@
 #include <vector>
 #include <cstdlib>
 #include <ctime>
+#include <map>
 
 /*
             Maze Solving Algorithms:
@@ -175,7 +176,6 @@ struct Ant{
     }
 };
 
-
 double heuristic(int x, int y, int goalX, int goalY) {
     return 1.0 / (abs(goalX - x) + abs(goalY - y) + 1.0);
 }
@@ -184,6 +184,14 @@ bool isValid(int x, int y, const vector<string>& maze) {
     return y >= 0 && y < static_cast<int>(maze.size()) &&
            x >= 0 && x < static_cast<int>(maze[0].size()) &&
            maze[y][x] == '.';
+}
+
+string pathToString(const vector<pair<int,int>>& path) {
+    string result;
+    for (const auto& cell : path) {
+        result += "(" + to_string(cell.first) + "," + to_string(cell.second) + ")";
+    }
+    return result;
 }
 
 pair<int,int> chooseNextMove(
@@ -205,11 +213,43 @@ pair<int,int> chooseNextMove(
     vector<double> weights;
     double total = 0.0;
 
+    pair<int,int> previous = {-1, -1};
+    if (ant.path.size() >= 2) {
+        previous = ant.path[ant.path.size() - 2];
+    }
+
     for (const auto& n : neighbors) {
         int nx = n.first;
         int ny = n.second;
 
-        if (isValid(nx, ny, maze) && !ant.visited[ny][nx]) {
+        if (!isValid(nx, ny, maze)) {
+            continue;
+        }
+
+        // block immediate backtracking if possible
+        if (nx == previous.first && ny == previous.second) {
+            continue;
+        }
+
+        double tau = pow(pheromone[ny][nx], alpha);
+        double eta = pow(heuristic(nx, ny, goalX, goalY), beta);
+        double score = tau * eta;
+
+        validMoves.push_back({nx, ny});
+        weights.push_back(score);
+        total += score;
+    }
+
+    // if no moves remain, allow backtracking as fallback
+    if (validMoves.empty()) {
+        for (const auto& n : neighbors) {
+            int nx = n.first;
+            int ny = n.second;
+
+            if (!isValid(nx, ny, maze)) {
+                continue;
+            }
+
             double tau = pow(pheromone[ny][nx], alpha);
             double eta = pow(heuristic(nx, ny, goalX, goalY), beta);
             double score = tau * eta;
@@ -226,13 +266,11 @@ pair<int,int> chooseNextMove(
 
     double randomChoice = static_cast<double>(rand()) / RAND_MAX;
 
-    // Occasionally explore randomly
     if (randomChoice < exploreRate) {
         int idx = rand() % validMoves.size();
         return validMoves[idx];
     }
 
-    // Otherwise do weighted selection
     double r = (static_cast<double>(rand()) / RAND_MAX) * total;
     double cumulative = 0.0;
 
@@ -265,11 +303,11 @@ vector<pair<int,int>> AntColonyOpt(
 
     vector<vector<double>> pheromone(height, vector<double>(width, 1.0));
 
-    double alpha = 1.0;
-    double beta = 3.0;
-    double evaporation = 0.3;
-    double Q = 100.0;
-    double exploreRate = 0.10;
+    double alpha = 0.8;
+    double beta = 1.5;
+    double evaporation = 0.4;
+    double Q = 25.0;
+    double exploreRate = 0.15;
     int maxSteps = width * height;
 
     vector<pair<int,int>> bestPath;
@@ -283,47 +321,61 @@ vector<pair<int,int>> AntColonyOpt(
             ants.emplace_back(startX, startY, width, height);
         }
 
-        for (auto& ant : ants) {
+        int successCount = 0;
+
+        map<string, int> pathCounts;
+        map<string, vector<pair<int,int>>> pathLookup;
+        map<string, bool> pathSuccess;
+
+        for (int i = 0; i < numAnts; i++) {
+            Ant& ant = ants[i];
+
             for (int step = 0; step < maxSteps; step++) {
                 if (ant.x == goalX && ant.y == goalY) {
                     ant.reachedGoal = true;
                     break;
                 }
 
-               pair<int,int> nextMove = chooseNextMove(
+                pair<int,int> nextMove = chooseNextMove(
                     ant, maze, pheromone, goalX, goalY, alpha, beta, exploreRate
                 );
 
                 if (nextMove.first == -1) {
                     // Dead end -> backtrack
                     if (ant.path.size() > 1) {
-                        ant.path.pop_back();  // remove current dead-end cell
-
+                        ant.path.pop_back();
                         ant.x = ant.path.back().first;
                         ant.y = ant.path.back().second;
                     } else {
-                        // back at the start and nowhere else to go
                         break;
                     }
-                }
-                else {
+                } else {
                     ant.x = nextMove.first;
                     ant.y = nextMove.second;
                     ant.path.push_back({ant.x, ant.y});
                     ant.visited[ant.y][ant.x] = true;
                 }
 
-            if (ant.x == goalX && ant.y == goalY) {
-                ant.reachedGoal = true;
+                if (ant.x == goalX && ant.y == goalY) {
+                    ant.reachedGoal = true;
+                    successCount++;
 
-                if (static_cast<int>(ant.path.size()) < bestLength) {
-                    bestLength = static_cast<int>(ant.path.size());
-                    bestPath = ant.path;
+                    if (static_cast<int>(ant.path.size()) < bestLength) {
+                        bestLength = static_cast<int>(ant.path.size());
+                        bestPath = ant.path;
+                    }
+
+                    break;
                 }
             }
+
+            string key = pathToString(ant.path);
+            pathCounts[key]++;
+            pathLookup[key] = ant.path;
+            pathSuccess[key] = ant.reachedGoal;
         }
 
-        // Evaporation
+        // Evaporation happens once per iteration
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 pheromone[y][x] *= (1.0 - evaporation);
@@ -345,8 +397,37 @@ vector<pair<int,int>> AntColonyOpt(
             }
         }
 
+        cout << "\nIteration " << iter + 1 << "/" << iterations << endl;
+        cout << "Successful ants: " << successCount << "/" << numAnts << endl;
+        cout << "Best path length so far: ";
+        if (bestLength == INT_MAX) {
+            cout << "none yet" << endl;
+        } else {
+            cout << bestLength << endl;
+        }
+
+        cout << "Unique paths this iteration: " << pathCounts.size() << endl;
+
+        int pathNumber = 1;
+        for (const auto& entry : pathCounts) {
+            const string& key = entry.first;
+            int count = entry.second;
+            const vector<pair<int,int>>& path = pathLookup[key];
+            bool reachedGoal = pathSuccess[key];
+
+            cout << "Path " << pathNumber
+                 << ": used by " << count << " ant(s), "
+                 << (reachedGoal ? "reached goal" : "did not reach goal")
+                 << ", length = " << path.size()
+                 << ", ended at (" << path.back().first << ", " << path.back().second << ")"
+                 << endl;
+
+            pathNumber++;
+        }
+
+        cout << "-----------------------------------" << endl;
     }
-    }
+
     return bestPath;
 }
 
@@ -361,7 +442,6 @@ vector<string> parseStem(const fs::path& file) {
         start = pos + 1;
     }
     return out;
-
 }
 
 void runDirectory(const fs::path& dir) {
