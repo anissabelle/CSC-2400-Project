@@ -1,7 +1,7 @@
 # CSC-2400-MazeSolvingProject
 ## Project Title : Maze Solving
 Maze Solving using BFS, DFS, A*, Bidirectionals search, and Ant colony optimization(ACO)
-## Project description : 
+### Project description : 
 The maze problem involves finding a path from a starting position to a destination within a maze. This project solves the maze pathfinding problem using multiple algorithms. The goal is to find a path from the start cell to the goal cell while avaoiding walls(blocked cells).
 Algorithms that are implemented :
 - Breadth First Search (BFS) : This algorithm explores all nearby paths level by level and guarantees the shortest path in an unweighted maze.
@@ -38,7 +38,7 @@ g++ main.cpp -o maze_runner.exe
 
 
 
-## Expected Output : 
+### Expected Output : 
 The program should display: 
 - BFS Path
 - DFS Path
@@ -46,13 +46,13 @@ The program should display:
 - ACO Result
 ********Example Output********
 
-## Project Objectives: 
+### Project Objectives: 
 - Compare pathfinding algorithms
 - Measure shortest path efficiency
 - Analyze execution time
 - Compare memory usage
 - Study optimization methods in maze solving
 
-## GenAI Usage: 
+### GenAI Usage: 
 
 
