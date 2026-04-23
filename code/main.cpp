@@ -74,59 +74,88 @@ long long us(F&& f) {
     return chrono::duration_cast<chrono::microseconds>(t1 - t0).count();
 }
 
-int runDfs(const vector<vector<int>>& adj, int startNode) {
-
-    if (startNode < 0) 
-        return 0;
+int runDfs(const vector<vector<int>>& adj, int startNode, int goalNode) {
+    if (startNode < 0 || goalNode < 0) {
+        return -1;
+    }
 
     vector<char> visited(adj.size(), 0);
+    vector<int> parent(adj.size(), -1);
     vector<int> stack{startNode};
-    int visitedNodesCount = 0;
 
     while (!stack.empty()) {
         int currentNode = stack.back();
         stack.pop_back();
 
-        if (visited[currentNode]){
+        if (visited[currentNode]) {
             continue;
         }
 
         visited[currentNode] = 1;
-        ++visitedNodesCount;
+
+        if (currentNode == goalNode) {
+            int pathLength = 0;
+            int node = goalNode;
+
+            while (node != -1) {
+                pathLength++;
+                node = parent[node];
+            }
+
+            return pathLength;
+        }
+
         for (int neighbor : adj[currentNode]) {
             if (!visited[neighbor]) {
+                if (parent[neighbor] == -1) {
+                    parent[neighbor] = currentNode;
+                }
                 stack.push_back(neighbor);
             }
         }
     }
-    return visitedNodesCount;
+
+    return -1;
 }
 
-int runBfs(const vector<vector<int>>& adj, int startNode) {
-    if (startNode < 0) {
-        return 0;
+int runBfs(const vector<vector<int>>& adj, int startNode, int goalNode) {
+    if (startNode < 0 || goalNode < 0) {
+        return -1;
     }
 
     vector<char> visited(adj.size(), 0);
-    queue<int> queue;
+    vector<int> parent(adj.size(), -1);
+    queue<int> nodeQueue;
 
-
-    queue.push(startNode);
+    nodeQueue.push(startNode);
     visited[startNode] = 1;
-    int visitedNodesCount = 0;
 
-    while (!queue.empty()) {
-        int currentNode = queue.front();
-        queue.pop();
-        ++visitedNodesCount;
+    while (!nodeQueue.empty()) {
+        int currentNode = nodeQueue.front();
+        nodeQueue.pop();
+
+        if (currentNode == goalNode) {
+            int pathLength = 0;
+            int node = goalNode;
+
+            while (node != -1) {
+                pathLength++;
+                node = parent[node];
+            }
+
+            return pathLength;
+        }
+
         for (int neighbor : adj[currentNode]) {
             if (!visited[neighbor]) {
                 visited[neighbor] = 1;
-                queue.push(neighbor);
+                parent[neighbor] = currentNode;
+                nodeQueue.push(neighbor);
             }
         }
     }
-    return visitedNodesCount;
+
+    return -1;
 }
 
 vector<int> Astar(const vector<string>& g, int src, int goal) {
@@ -303,12 +332,12 @@ vector<pair<int,int>> AntColonyOpt(
 
     vector<vector<double>> pheromone(height, vector<double>(width, 1.0));
 
-    double alpha = 0.8;
-    double beta = 1.5;
+    double alpha = 1.0;
+    double beta = 2.0;
     double evaporation = 0.4;
-    double Q = 25.0;
-    double exploreRate = 0.15;
-    int maxSteps = width * height;
+    double Q = 50.0;
+    double exploreRate = 0.05;
+    int maxSteps = 4 * (width + height);
 
     vector<pair<int,int>> bestPath;
     int bestLength = INT_MAX;
@@ -385,15 +414,28 @@ vector<pair<int,int>> AntColonyOpt(
             }
         }
 
-        // Deposit pheromones only from successful ants
+        // Deposit pheromones only from the best successful ants
+        vector<const Ant*> successfulAnts;
         for (const auto& ant : ants) {
             if (ant.reachedGoal) {
-                double deposit = Q / ant.path.size();
-                for (const auto& cell : ant.path) {
-                    int x = cell.first;
-                    int y = cell.second;
-                    pheromone[y][x] += deposit;
-                }
+                successfulAnts.push_back(&ant);
+            }
+        }
+
+        sort(successfulAnts.begin(), successfulAnts.end(),
+            [](const Ant* a, const Ant* b) {
+                return a->path.size() < b->path.size();
+            });
+
+        int eliteCount = min(3, static_cast<int>(successfulAnts.size()));
+
+        for (int i = 0; i < eliteCount; i++) {
+            double deposit = Q / successfulAnts[i]->path.size();
+
+            for (const auto& cell : successfulAnts[i]->path) {
+                int x = cell.first;
+                int y = cell.second;
+                pheromone[y][x] += deposit;
             }
         }
 
@@ -446,36 +488,63 @@ vector<string> parseStem(const fs::path& file) {
 
 void runDirectory(const fs::path& dir) {
     vector<fs::path> files;
-    for (const auto& e : fs::directory_iterator(dir)) if (e.is_regular_file() && e.path().extension() == ".txt") files.push_back(e.path());
+
+    for (const auto& e : fs::directory_iterator(dir)) {
+        if (e.is_regular_file() && e.path().extension() == ".txt") {
+            files.push_back(e.path());
+        }
+    }
+
     sort(files.begin(), files.end());
+
     for (const auto& file : files) {
         auto maze = loadGrid(file.string());
         if (maze.empty()) continue;
+
         auto adj = buildAdj(maze);
         auto sg = srcGoal(maze);
         int src = sg.first;
         int goal = sg.second;
+
         auto name = parseStem(file);
         string type = name.size() > 0 ? name[0] : "unknown";
         string size = name.size() > 1 ? name[1] : "unknown";
 
-        long long dfsUs = us([&] { (void)runDfs(adj, src); });
+        int dfsPathLength = -1;
+        long long dfsUs = us([&] {
+            dfsPathLength = runDfs(adj, src, goal);
+        });
 
-        long long bfsUs = us([&] { (void)runBfs(adj, src); });
+        int bfsPathLength = -1;
+        long long bfsUs = us([&] {
+            bfsPathLength = runBfs(adj, src, goal);
+        });
 
-        long long astarUs = us([&] { (void)Astar(maze, src, goal); });
-        
+        vector<int> aStarPath;
+        long long astarUs = us([&] {
+            aStarPath = Astar(maze, src, goal);
+        });
+        int aStarPathLength = aStarPath.empty() ? -1 : static_cast<int>(aStarPath.size());
+
         int numAnts = 20;
         int iterations = 50;
-        long long acoUs = us([&] { (void)AntColonyOpt(maze, src, goal, numAnts, iterations); });
+        vector<pair<int,int>> acoPath;
+        long long acoUs = us([&] {
+            acoPath = AntColonyOpt(maze, src, goal, numAnts, iterations);
+        });
+        int acoPathLength = acoPath.empty() ? -1 : static_cast<int>(acoPath.size());
 
         cout << file.filename().string()
              << " | perfection: " << type
              << " | size: " << size
-             << " | time(us) dfs=" << dfsUs
-             << " bfs=" << bfsUs
-             << " astar=" << astarUs
-             << " aco=" << acoUs
+             << " | dfs(us)=" << dfsUs
+             << " | dfs path length=" << dfsPathLength
+             << " | bfs(us)=" << bfsUs
+             << " | bfs path length=" << bfsPathLength
+             << " | astar(us)=" << astarUs
+             << " | astar path length=" << aStarPathLength
+             << " | aco(us)=" << acoUs
+             << " | aco path length=" << acoPathLength
              << '\n';
     }
 }
@@ -512,10 +581,22 @@ void runMenu(const vector<string>& maze) {
     }
 
     if (choice == 1) {
-        cout << "Execution time of DFS traversal: " << us([&] { (void)runDfs(adj, src); }) << " microseconds\n\n";
+        int dfsPathLength = -1;
+        long long dfsUs = us([&] {
+            dfsPathLength = runDfs(adj, src, goal);
+        });
+
+        cout << "Execution time of DFS traversal: " << dfsUs << " microseconds\n";
+        cout << "DFS path length: " << dfsPathLength << "\n\n";
         runMenu(maze);
     } else if (choice == 2) {
-        cout << "Execution time of BFS traversal: " << us([&] { (void)runBfs(adj, src); }) << " microseconds\n\n";
+        int bfsPathLength = -1;
+        long long bfsUs = us([&] {
+            bfsPathLength = runBfs(adj, src, goal);
+        });
+
+        cout << "Execution time of BFS traversal: " << bfsUs << " microseconds\n";
+        cout << "BFS path length: " << bfsPathLength << "\n\n";
         runMenu(maze);
     } else if (choice == 3) {
         vector<int> path;
@@ -552,23 +633,53 @@ void runMenu(const vector<string>& maze) {
 
         cout << "\n\nAnt colony optimization is an algorithm modeled on the actions of an ant colony\n";
         cout << "How large is your ant colony?" << endl;
-        cout << "Recommended number of ants based on maze size:" 
-        << endl << "Small - 20" << endl << "Medium - 40" << endl;
+        cout << "Recommended number of ants based on maze size:"
+            << endl << "Small - 20" << endl << "Medium - 40" << endl;
         cout << "\nNumber of ants: ";
         cin >> numAnts;
+
         cout << "How many rounds/times (iterations) would you like your ants to search?" << endl;
-        cout << "Recommended iterations based on maze size:" 
-        << endl << "Small - 50-75" << endl << "Medium - 100-150" << endl;
+        cout << "Recommended iterations based on maze size:"
+            << endl << "Small - 50-75" << endl << "Medium - 100-150" << endl;
         cout << "Iterations: ";
         cin >> iterations;
 
+        int dfsPathLength = -1;
+        long long dfsUs = us([&] {
+            dfsPathLength = runDfs(adj, src, goal);
+        });
 
-        cout << "\n\nExecution time of DFS traversal: " << us([&] { (void)runDfs(adj, src); }) << " microseconds\n";
-        cout << "Execution time of BFS traversal: " << us([&] { (void)runBfs(adj, src); }) << " microseconds\n";
-        cout << "Execution time of A*: " << us([&] { (void)Astar(maze, src, goal); }) << " microseconds\n";
-        cout << "Execution time of ACO: " << us([&] { (void)AntColonyOpt(maze, src, goal, numAnts, iterations); }) << " microseconds\n";
+        int bfsPathLength = -1;
+        long long bfsUs = us([&] {
+            bfsPathLength = runBfs(adj, src, goal);
+        });
+
+        vector<int> aStarPath;
+        long long aStarUs = us([&] {
+            aStarPath = Astar(maze, src, goal);
+        });
+        int aStarPathLength = aStarPath.empty() ? -1 : static_cast<int>(aStarPath.size());
+
+        vector<pair<int,int>> acoPath;
+        long long acoUs = us([&] {
+            acoPath = AntColonyOpt(maze, src, goal, numAnts, iterations);
+        });
+        int acoPathLength = acoPath.empty() ? -1 : static_cast<int>(acoPath.size());
+
+        cout << "\n\nExecution time of DFS traversal: " << dfsUs << " microseconds\n";
+        cout << "DFS path length: " << dfsPathLength << "\n";
+
+        cout << "Execution time of BFS traversal: " << bfsUs << " microseconds\n";
+        cout << "BFS path length: " << bfsPathLength << "\n";
+
+        cout << "Execution time of A*: " << aStarUs << " microseconds\n";
+        cout << "A* path length: " << aStarPathLength << "\n";
+
+        cout << "Execution time of ACO: " << acoUs << " microseconds\n";
+        cout << "ACO path length: " << acoPathLength << "\n\n";
+
         runMenu(maze);
-    }
+}
     else if(choice == 6){
 
         string input = "";
