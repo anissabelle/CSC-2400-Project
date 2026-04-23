@@ -53,7 +53,6 @@ The program should display:
 - Compare memory usage
 - Study optimization methods in maze solving
 
-## Resources Used: 
+## GenAI Usage: 
 
-Maze data creation and dataset:
-https://www.kaggle.com/datasets/mexwell/maze-dataset/data?select=perfect_maze
+
