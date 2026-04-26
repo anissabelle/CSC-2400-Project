@@ -54,5 +54,6 @@ The program should display:
 - Study optimization methods in maze solving
 
 ### GenAI Usage: 
-
+Cursor's auto and premium mode was used to create a proof of concept for the algorithms and assist in the development of the final project algorithm code and dataset generation script.
+https://cursor.com
 
