@@ -18,6 +18,15 @@
             Maze Solving Algorithms:
             We are testing the time efficiency between DFS, BFS, A*, and Ant Colony Optimization
 
+            How to run:
+            g++ main.cpp -o maze_runner.exe
+            ./maze_runner.exe
+
+            When prompted with file path, insert data from one of the generated datasets in the data folder.
+            Remove quotations
+
+            To test ACO, only use small perfect or small imperfect. The other algorithms, BFS, DFS, and A* work with any generated dataset
+
 */
 
 
